@@ -1,114 +1,106 @@
-const http = require("http");
-const fs = require("fs");
+const express = require("express");
+const fs = require("fs").promises;
 const querystring = require("querystring");
 
-let HomeHTML = "";
-fs.readFile("../Client-Side/Pages/main.html", "utf-8", (err, data)=>{
-    if(err){
-        console.log("Error");
-    }else{
-        HomeHTML = data;
-    }
+const app = express();
+
+app.get("/", async (req, res) => {
+  try {
+    const mainHTML = await fs.readFile("../Client-Side/Pages/main.html");
+    res.setHeader("Content-Type", "text/html");
+    res.send(mainHTML);
+  } catch (error) {
+    console.error("Error reading main HTML:", error);
+  }
 });
 
-let welcomeHTML = fs.readFileSync("../Client-Side/Pages/welcome.html","utf-8");
-let styleCSS = fs.readFileSync("../Client-Side/Style/style.css","utf-8");
-let scriptJS = fs.readFileSync("../Client-Side/Scripts/script.js","utf-8");
-let imageJPG = fs.readFileSync("../Client-Side/Images/image.jpg","utf-8");
-let favIconico = fs.readFileSync("../Client-Side/Icons/favicon.ico","utf-8");
+app.get("/styles/style.css", async (req, res) => {
+  try {
+    const mainCSS = await fs.readFile("../Client-Side/Style/style.css");
+    res.setHeader("Content-Type", "text/css");
+    res.send(mainCSS);
+  } catch (error) {
+    console.error("Error reading CSS file:", error);
+  }
+});
 
+app.get("/welcome.html", async (req, res) => {
+  try {
+    const welcomeHTML = await fs.readFile(
+      "../Client-Side/Pages/welcome.html",
+      "utf8"
+    );
+    res.setHeader("Content-Type", "text/html");
+    res.send(welcomeHTML);
+  } catch (error) {
+    console.error("Error reading welcome HTML:", error);
+  }
+});
+app.get("/clientData.json", async (req, res) => {
+  try {
+    const json = await fs.readFile(
+      "../Client-Side/Data/ClientData.json",
+      "utf8"
+    );
+    res.setHeader("Content-Type", "text/json");
+    res.send(json);
+  } catch (error) {
+    console.error("Error reading welcome HTML:", error);
+  }
+});
 
-http 
-  .createServer((req, res) => { 
-    if (req.method == "GET") { 
-      switch (req.url) { 
-        case "/": 
-        case "/main.html": 
-        case "/Pages/main.html": 
-        case "/Client-Side/Pages/main.html": 
-          res.setHeader("Content-Type", "text/html"); 
-          res.write(HomeHTML); 
-          break; 
-        case "/style.css": 
-        case "/Style/style.css": 
-        case "/Client-Side/Style/style.css": 
-          res.setHeader("Content-Type", "text/css"); 
-          res.write(styleCSS); 
-          break; 
-        case "/script.js": 
-        case "/Scripts/script.js": 
-        case "/Client-Side/Scripts/script.js": 
-          res.setHeader("Content-Type", "text/javascript"); 
-          res.write(scriptJS); 
-          break; 
-        case "/image.jpg": 
-        case "/Images/image.jpg": 
-        case "/Client-Side/Images/image.jpg": 
-          res.setHeader("Content-Type", "image/jpeg"); 
-          res.write(imageJPG); 
-          break; 
-        case "/favicon.ico": 
-        case "/Icons/favicon.ico": 
-        case "/Client-Side/Icons/favicon.ico": 
-          res.setHeader("Content-Type", "image/vnd.microsoft.icon"); 
-          res.write(favIconico); 
-          break; 
-        default: 
-          if (req.url.includes("welcome.html")) { 
-            res.setHeader("Content-Type", "text/html"); 
-            res.write(welcomeHTML); 
-          } else res.write("Invalid URL !!"); 
-          break; 
-      } 
-      res.end(); 
-    } 
+app.post("/welcome.html", async (req, res) => {
+  let formData = "";
 
-
-    else if (req.method == "POST") {
-        let formData = "";
-        req.on("data", (data) => {
-            formData += data;
-        });
-
-        req.on("end", () => {
-            const parsedData = querystring.parse(formData);
-            const Name = parsedData.Name;
-            const MobileNumber = parsedData.MobileNumber;
-            const Address = parsedData.Address;
-            const Email = parsedData.Email;
-        res.setHeader("Content-Type", "text/html"); 
-        let File = welcomeHTML
-                            .replace("{Name}", Name)
-                            .replace("{MobileNumber}", MobileNumber)
-                            .replace("{address}", Address)
-                            .replace("{Email}", Email); 
-        res.write(File); 
-        res.end(); 
-      });
- 
-      req.on("error", () => { 
-        console.log("Error"); 
-      });
-      req.on("close", () => { 
-        console.log("Closed"); 
-      });
-    } 
-
-    
-    else if (req.method == "PUT") { 
-    } 
-
-    else if (req.method == "PATCH") { 
-    } 
-
-    else if (req.method == "DELETE") { 
-    } 
-
-    else { 
-      res.end("Please Check ur Method [GET- POST - PATCH - PUT - DELETE]"); 
-    } 
-
-  }) 
-  .listen(7000, () => { 
-    console.log("http://localhost:7000"); 
+  req.on("data", (data) => {
+    formData += data;
   });
+
+  req.on("end", async () => {
+    const parsedData = querystring.parse(formData);
+
+    try {
+      const welcomeHTML = await fs.readFile(
+        "../Client-Side/Pages/welcome.html",
+        "utf8"
+      );
+      let fileContent = welcomeHTML
+        .replace("{Name}", parsedData.Name)
+        .replace("{MobileNumber}", parsedData.Mobile)
+        .replace("{address}", parsedData.Address)
+        .replace("{Email}", parsedData.Email);
+
+      console.log(parsedData);
+      res.setHeader("Content-Type", "text/html");
+      res.send(fileContent);
+    } catch (error) {
+      console.error("Error reading welcome HTML:", error);
+    }
+
+    try {
+      const oldData = await fs.readFile(
+        "../Client-Side/Data/ClientData.json",
+        "utf8"
+      );
+      const data = JSON.parse(oldData || "[]");
+
+      data.push(parsedData);
+      await fs.writeFile(
+        "../Client-Side/Data/ClientData.json",
+        JSON.stringify(data, null, 2)
+      );
+    } catch (error) {
+      console.error("Error writing client data:", error);
+    }
+  });
+
+  req.on("error", (error) => {
+    console.error("Request error:", error);
+  });
+});
+
+app.all("*", (req, res) => {
+  res.status(404).send("Invalid URL!");
+});
+
+app.listen(7000);
